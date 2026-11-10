@@ -1,5 +1,5 @@
 
-# Scriptorium: Markdown-to-DOCX Compiler for Academic Preprints
+# build_docx: Markdown-to-DOCX Compiler for Academic Preprints
 
 **Scriptorium** — это специализированный движок для компиляции Markdown-файлов в единый, безупречно отформатированный документ Microsoft Word (.docx). Проект создан для исследователей, которым нужна академическая строгость без боли ручной верстки.
 
