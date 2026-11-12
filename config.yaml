@@ -1,0 +1,59 @@
+# ==============================================================================
+# CONFIGURATION FILE FOR build_docx
+# Replace the placeholder data below with your own project information.
+# ==============================================================================
+
+title_page:
+  enabled: true
+  # Use \n for manual line breaks in titles, or leave as a single line.
+  title_ru: "Название вашей научной работы:\nПодзаголовок или дополнительная информация"
+  title_en: "Title of Your Scientific Work:\nSubtitle or Additional Information"
+  
+  author: "Иван Иванов (Ivan Ivanov)"
+  role: "Researcher / Developer • Organization"
+  email: "Email: example@example.com"
+  repository: "Repository: https://github.com/username/repository"
+  
+  edition_title: "Academic Preprint / Академический препринт"
+  edition_desc: "Документ содержит полный текст статьи и приложение с исходным кодом.\nThe document contains the full text and source code appendix."
+  
+  abstract_en_title: "ABSTRACT:"
+  abstract_en_text: 'This is a brief abstract of your research. It should summarize the main goals, methodology, and key results of the study. You can include inline math like $E = mc^2$ or blocks if needed.'
+  
+  abstract_ru_title: "АННОТАЦИЯ:"
+  abstract_ru_text: 'Это краткое описание вашего исследования. Оно должно содержать основные цели, методологию и ключевые результаты. Здесь также можно использовать формулы, например $E = mc^2$.'
+
+header_footer:
+  header:
+    enabled: true
+    text: "YOUR PROJECT NAME: SCIENTIFIC PREPRINT | 2024"
+    alignment: "right" # left, center, right
+    font_size: 8
+    color: "888888"
+  footer:
+    enabled: true
+    first_page_text: "License: Creative Commons CC BY 4.0 • Date: 2024"
+    show_page_numbers: true
+    alignment: "center" # left, center, right
+
+features:
+  hyphenation: false # Set to true if you want automatic word hyphenation
+  numbering:
+    figures: false # Set to true to automatically number figures (Рисунок 1...)
+    tables: false  # Set to true to automatically number tables (Таблица 1...)
+  footnotes:
+    mode: "endnotes" # Options: "endnotes" (at the end of doc) or "footnotes" (native Word footnotes)
+
+metadata:
+  # These properties are embedded into the DOCX file for digital libraries and search engines
+  title: "Full Title of the Article"
+  subject: "Brief Subject / Краткая тема"
+  author: "Ivan Ivanov"
+  keywords: "keyword1, keyword2, keyword3, LLM, Science"
+  category: "Scientific Preprint"
+  comments: "License: MIT / CC BY 4.0. Generated with build_docx."
+  
+appendix:
+  enabled: true
+  # If you pass the --code flag in CLI, this header will be generated before the code
+  title: "Приложение A. Исходный код / Appendix A. Source Code"

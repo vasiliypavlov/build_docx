@@ -1,0 +1,138 @@
+page:
+  size: "A4"
+  margins_inches: {top: 1.0, bottom: 1.0, left: 1.25, right: 1.25}
+
+text_body:
+  font: "PT Serif"
+  size: 11
+  color: "222222"
+  align: "left"
+  line_spacing: 1.4
+  indent_inches: 0.0
+  space_after: 8
+
+lists:
+  bullet_marker: "▪"
+  bibliography_hanging_indent: 0.5
+  # НОВЫЕ ПАРАМЕТРЫ:
+  indent_inches: 0.25     # Отступ слева для самого списка
+  space_before: 2         # Отступ перед первым пунктом (в pt)
+  space_after: 4          # Отступ между пунктами и после списка (в pt)
+
+styles:
+  h1: {font: "PT Serif", size: 18, bold: true, color: "000000", align: "left", space_before: 28, space_after: 12, page_break_before: true}
+  h2: {font: "PT Serif", size: 16, bold: true, color: "000000", align: "left", space_before: 20, space_after: 8}
+  h3: {font: "PT Serif", size: 13, bold: true, italic: true, color: "111111", align: "left", space_before: 16, space_after: 6}
+  link_color: "1F497D" # <--- Благородный темно-синий цвет
+
+  quote:
+    font: "PT Serif"
+    size: 10.5
+    italic: true
+    color: "444444"
+    align: "left"
+    left_indent: 0.4
+    border_left_width: 12
+    border_left_color: "CCCCCC"
+    space_before: 12
+    space_after: 12
+
+  callout:
+    font: "PT Serif"
+    size: 10.5
+    color: "1A1A1A"
+    align: "left"
+    background_color: "F4F5F7"
+    left_indent: 0.2
+    right_indent: 0.2
+    space_before: 12
+    space_after: 12
+
+  code_inline:
+    font: "PT Mono"
+    size: 9.5
+    color: "333333"
+    background_color: "E8E8E8"
+
+  code_block:
+    font: "PT Mono"
+    size: 9
+    color: "222222"
+    background_color: "F5F5F5"
+    border_top_width: 0
+    border_bottom_width: 0
+    border_color: "BFBFBF"
+    left_indent: 0.2
+    line_spacing: 1.0
+    space_before: 12
+    space_after: 12
+
+  plaintext:
+    font: "Consolas"
+    size: 9
+    color: "333333"
+    background_color: null
+    border_top_width: 8
+    border_bottom_width: 8
+    border_color: "808080"
+    left_indent: 0.2
+    line_spacing: 1.0
+    space_before: 12
+    space_after: 12
+
+  appendix_code:
+    font: "Consolas"
+    size: 8.5
+    color: "222222"
+    background_color: "F9F9F9"
+    border_color: "CCCCCC"
+    left_indent: 0.1
+    line_spacing: 1.0
+    space_before: 8
+    space_after: 8
+    pyg_keyword: "0000FF"
+    pyg_string: "A31515"
+    pyg_comment: "008000"
+    pyg_number: "098658"
+
+  toc:
+    font: "PT Serif"
+    size: 11
+    color: "222222"
+    h1_bold: true
+    indent_per_level: 0.25
+    space_after: 4
+    space_before_h1: 12
+    title_align: "left"
+
+  footnotes:
+    font: "PT Serif"
+    size: 9
+    color: "444444"
+    line_spacing: 1.1
+    space_after: 2
+
+  metadata:
+    font: "PT Serif"
+    size: 10
+    color: "333333"
+    align: "left"
+    line_spacing: 1.2
+    space_after: 4
+
+  caption:
+    font: "PT Serif"
+    size: 9
+    italic: true
+    color: "555555"
+    align: "center"
+    space_before: 6
+    space_after: 12
+
+  table_font_size: 9
+  table:
+    padding_inches: {left: 0.04, right: 0.04, top: 0.03, bottom: 0.03}
+    border_color: "BFBFBF"
+    border_width_inner: 4
+    border_width_outer: 8
+    header_bg: "F2F2F2"

@@ -1,117 +1,35 @@
-# build_docx: Markdown-to-DOCX Compiler for Academic Preprints
+# build_docx: Academic Markdown to Word Compiler
 
-[![Status: MVP](https://img.shields.io/badge/status-MVP-orange)](https://github.com/vasiliypavlov/build_docx)
+**build_docx** is a highly customizable Python tool designed to compile Markdown (`.md`) files into publication-ready Microsoft Word (`.docx`) documents. 
 
-**build_docx** — это специализированный движок для компиляции Markdown-файлов в единый, безупречно отформатированный документ Microsoft Word (.docx). Проект создан для исследователей, которым нужна академическая строгость без боли ручной верстки.
+Unlike standard converters, **build_docx** is tailored specifically for academic and scientific publishing. It handles complex formatting, native Word equations, academic table styling, and strict typographic rules automatically.
 
-Инструмент объединяет простоту Markdown с мощью профессиональных издательских систем, поддерживая двуязычные тексты, сложную математику и подсветку синтаксиса.
+## ✨ Key Features
 
-## ✨ Ключевые возможности
+*   **Native Word Formulas (OMML):** Converts LaTeX math (`$inline$` and `$$block$$`) directly into native Microsoft Word equations, editable in the Word formula editor.
+*   **Academic Table Styling (Clean Grid / Booktabs):** Automatically calculates optimal column widths, prevents text wrapping inside cells, aligns numbers to the right, and applies professional borders.
+*   **Native Word Footnotes:** Bypasses `python-docx` limitations by injecting native `footnotes.xml` into the document package. Supports both endnotes and true footnotes.
+*   **Live Table of Contents:** Generates a native Word TOC field that automatically updates page numbers (press `F9` in Word to refresh).
+*   **Syntax Highlighting:** Uses `Pygments` to add beautiful, code-block highlighting in the Appendix, while respecting `plaintext` for terminal outputs.
+*   **Smart Typography:** Automatically handles non-breaking spaces, prevents "widows and orphans" in headings, and controls hyphenation.
+*   **YAML-Driven:** All logic and styling are separated into two configuration files (`config.yaml` and `theme.yaml`), making it easy to change fonts, margins, and rules without touching the Python code.
+*   **Embedded Metadata:** Injects Title, Author, Keywords, and License directly into the DOCX file properties for digital libraries (arXiv, Zenodo, etc.).
+*   **Bilingual Support:** Perfectly handles mixed Russian/English texts (with automatic language detection for hyphenation and typography).
 
-*   **📚 Умная сборка:** Автоматически сканирует папку `text/`, сортирует файлы по нумерации (`01_`, `02_`...) и собирает их в единую книгу.
-*   **📑 Нативное оглавление:** Генерирует реальное поле `TOC` в Word, которое можно обновить по нажатию F9.
-*   **🧮 Формулы (OMML):** Полная поддержка LaTeX. Формулы конвертируются в нативные математические объекты Word, а не в картинки.
-*   **🎨 Подсветка кода (Pygments):** Нативная подсветка синтаксиса Python, C++, JSON и других языков. Код не ломается при конвертации в PDF.
-*   **📊 Умные таблицы:** Автоматическая ширина колонок, заливка заголовков и выравнивание чисел по правому краю.
-*   **📐 Mermaid.js:** Поддержка блок-схем. Просто напишите ` ```mermaid `, и скрипт сам сгенерирует PNG-картинку и вставит её в документ.
-*   **💡 Callout-блоки:** Красивые цветные врезки (`NOTE`, `WARNING`, `TIP`) с иконками и цветными границами.
-*   **🔗 HTML-теги:** Поддержка инлайн-тегов `<sub>`, `<sup>`, `<b>`, `<i>`, `<br>` и `<code>`.
-*   **📝 Метаданные:** Автоматически заполняет свойства DOCX-файла (автор, ключевые слова, название) для корректной работы в Zotero и Mendeley.
-*   **🌍 Двуязычность:** Автоматически определяет язык абзаца (RU или EN) для расстановки правильных переносов.
+## 🚀 Installation
 
-## 🚧 Статус проекта: MVP (Minimum Viable Product)
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/vasiliypavlov/build_docx.git
+   cd build_docx
+   ```
 
-**Что уже работает (ядро):**
-- Сборка глав, генерация TOC, формулы OMML, подсветка Pygments.
-- Поддержка Mermaid, Callout-блоков и таблиц с автовыравниванием.
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-**Известные ограничения (в разработке):**
-- Поддержка сносок ограничена концевыми сносками (Endnotes) из-за ограничений `python-docx`.
-- Нет встроенной поддержки нативных постраничных сносок Word.
-
-## 🚀 Быстрый старт
-
-### 1. Установка зависимостей
-
-```bash
-pip install python-docx pygments latex2mathml mathml2omml lxml
-```
-
-*Для работы Mermaid-диаграмм необходимо установить [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) глобально:*
-```bash
-npm install -g @mermaid-js/mermaid-cli
-```
-
-### 2. Структура проекта
-
-Организуйте файлы в вашей рабочей директории следующим образом:
-
-```text
-my-research-paper/
-├── build_docx.py            # Скрипт-компилятор
-├── comprehensive_experiment.py  # (Опционально) Код для Приложения А
-└── text/
-    ├── title-page.md        # Титульный лист (шаблон)
-    ├── 01_introduction.md   # Глава 1
-    ├── 02_architecture.md   # Глава 2
-    └── 03_conclusion.md     # Глава 3
-```
-
-### 3. Запуск
-
-```bash
-python build_docx.py
-```
-На выходе вы получите файл `Universal_Academic_Report.docx`.
-
-## 📖 Синтаксис Markdown (Расширения)
-
-Помимо стандартного Markdown, build_docx поддерживает:
-
-### Callout-блоки (Врезки)
-```markdown
-> [!NOTE]
-> Это важное примечание.
-
-> [!WARNING]
-> Внимание! Это предупреждение.
-
-> [!TIP]
-> Полезный совет.
-```
-
-### Формулы
-Выключные формулы оборачиваются в `$$` или `\[ ... \]`.
-```latex
-\[
- \Delta_{\text{friction}} = \Delta_{\text{geom}} \times \Delta_{\text{info}} 
-\]
-```
-
-### Подписи к рисункам и таблицам
-```markdown
-![Архитектура системы](images/arch.png)
-```
-*Скрипт автоматически добавит "Рис. 1. Архитектура системы" под картинкой.*
-
-### Диаграммы Mermaid
-````markdown
-```mermaid
-graph TD;
-    A[Input] --> B(Transformer);
-    B --> C{Intercept?};
-    C -->|Yes| D[CPU];
-    C -->|No| E[Layer 28];
-```
-````
-
-### Сноски (Концевые)
-```markdown
-Текст со сноской[^1].
-
-[^1]: Текст сноски.
-```
-
-## ⚖️ Лицензия
-
-Этот проект распространяется под лицензией **MIT**. Вы можете свободно использовать, модифицировать и распространять его в академических и коммерческих целях.
+3. (Optional) For rendering Mermaid diagrams, install Node.js and Mermaid CLI:
+   ```bash
+   npm install -g @mermaid-js/mermaid-cli
+   ```
