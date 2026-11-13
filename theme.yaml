@@ -80,6 +80,7 @@ styles:
     space_before: 12
     space_after: 12
 
+    
   appendix_code:
     font: "Consolas"
     size: 8.5
@@ -87,7 +88,7 @@ styles:
     background_color: "F9F9F9"
     border_color: "CCCCCC"
     left_indent: 0.1
-    line_spacing: 1.0
+    line_spacing: 1.1
     space_before: 8
     space_after: 8
     pyg_keyword: "0000FF"

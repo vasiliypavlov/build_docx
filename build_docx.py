@@ -104,19 +104,41 @@ def load_yaml(path, default_dict):
 
 def get_runtime_settings():
     parser = argparse.ArgumentParser(description="Build DOCX from Markdown")
-    parser.add_argument("-c", "--config", default="config.yaml")
-    parser.add_argument("-t", "--theme", default="theme.yaml")
-    parser.add_argument("-i", "--input")
-    parser.add_argument("-o", "--output")
-    parser.add_argument("--code", help="Путь к файлу или папке с кодом") # <-- ДОБАВЛЕНО
+    # Меняем default на None, чтобы понять, передал ли пользователь путь явно
+    parser.add_argument("-c", "--config", default=None, help="Путь к config.yaml")
+    parser.add_argument("-t", "--theme", default=None, help="Путь к theme.yaml")
+    parser.add_argument("-i", "--input", help="Папка с Markdown-файлами")
+    parser.add_argument("-o", "--output", help="Имя итогового DOCX")
+    parser.add_argument("--code", help="Путь к файлу или папке с кодом")
     args = parser.parse_args()
 
-    config = load_yaml(args.config, DEFAULT_CONFIG.copy())
-    theme = load_yaml(args.theme, DEFAULT_THEME.copy())
+    # 1. Определяем папку с исходниками (откуда будем искать локальные конфиги)
+    input_dir = args.input if args.input else DEFAULT_CONFIG["paths"]["input_dir"]
+    
+    # 2. Определяем путь к config.yaml
+    if args.config:
+        config_path = args.config  # Приоритет 1: явно указан в CLI
+    elif os.path.exists(os.path.join(input_dir, "config.yaml")):
+        config_path = os.path.join(input_dir, "config.yaml") # Приоритет 2: лежит в папке текста
+    else:
+        config_path = "config.yaml" # Приоритет 3: лежит рядом со скриптом
 
+    # 3. Определяем путь к theme.yaml
+    if args.theme:
+        theme_path = args.theme
+    elif os.path.exists(os.path.join(input_dir, "theme.yaml")):
+        theme_path = os.path.join(input_dir, "theme.yaml")
+    else:
+        theme_path = "theme.yaml"
+
+    # Загружаем конфиги
+    config = load_yaml(config_path, DEFAULT_CONFIG.copy())
+    theme = load_yaml(theme_path, DEFAULT_THEME.copy())
+
+    # Переопределяем пути, если они были переданы в CLI
     if args.input: config["paths"]["input_dir"] = args.input
     if args.output: config["paths"]["output_docx"] = args.output
-    if args.code: config["paths"]["code_dir"] = args.code # <-- ДОБАВЛЕНО
+    if args.code: config["paths"]["code_dir"] = args.code
     
     return config, theme
 
@@ -362,7 +384,7 @@ def add_math(container, latex_str, is_block=True):
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.first_line_indent = Pt(0)
             p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(6)
-            p.paragraph_format.keep_with_next = True; p.paragraph_format.keep_together = True
+            p.paragraph_format.keep_together = True
         else:
             p = container
         p._p.append(omml_element)
@@ -467,7 +489,7 @@ def set_paragraph_borders(p, top_width=0, bottom_width=0, left_width=0, color="C
     for edge, sz in [('top', top_width), ('bottom', bottom_width), ('left', left_width)]:
         if sz > 0:
             el = OxmlElement(f'w:{edge}')
-            el.set(qn('w:val'), 'single'); el.set(qn('w:sz'), str(sz)); el.set(qn('w:space'), '4'); el.set(qn('w:color'), color.replace("#", ""))
+            el.set(qn('w:val'), 'single'); el.set(qn('w:sz'), str(sz)); el.set(qn('w:space'), '6'); el.set(qn('w:color'), color.replace("#", ""))
             pBdr.append(el)
     if len(pBdr) > 0: pPr.append(pBdr)
 
@@ -693,8 +715,17 @@ def add_title_page(doc, config, theme):
     p_line = doc.add_paragraph(); p_line.paragraph_format.first_line_indent = Pt(0); p_line.paragraph_format.space_before = Pt(4); p_line.paragraph_format.space_after = Pt(12)
     add_horizontal_line(p_line, color_hex="404040")
 
-    add_par(tp.get("edition_title", ""), size=font_size - 1, bold=True, align=WD_ALIGN_PARAGRAPH.LEFT, space_after=4)
-    add_par(tp.get("edition_desc", ""), size=font_size - 1, italic=True, align=WD_ALIGN_PARAGRAPH.LEFT, space_after=14)
+    # --- Описание издания (Английский блок) ---
+    if tp.get("edition_title_en"):
+        add_par(tp.get("edition_title_en", ""), size=font_size - 1, bold=True, align=WD_ALIGN_PARAGRAPH.LEFT, space_after=2)
+    if tp.get("edition_desc_en"):
+        add_par(tp.get("edition_desc_en", ""), size=font_size - 1, italic=True, align=WD_ALIGN_PARAGRAPH.LEFT, space_after=10)
+
+    # --- Описание издания (Русский блок) ---
+    if tp.get("edition_title_ru"):
+        add_par(tp.get("edition_title_ru", ""), size=font_size - 1, bold=True, align=WD_ALIGN_PARAGRAPH.LEFT, space_after=2)
+    if tp.get("edition_desc_ru"):
+        add_par(tp.get("edition_desc_ru", ""), size=font_size - 1, italic=True, align=WD_ALIGN_PARAGRAPH.LEFT, space_after=14)
 
     def add_abstract(title, text):
         if not text: return
@@ -981,7 +1012,6 @@ def parse_md_to_docx(doc, text, config, theme, ctx, fm):
             
         # ... (Остальной код для fence, math_block, table_open, blockquote_open, footnote_block оставьте как был)
         elif token.type == "fence":
-            # ... (без изменений)
             lang = token.info.strip().lower(); p = doc.add_paragraph()
             p.paragraph_format.first_line_indent = Pt(0)
             if lang == "mermaid":
@@ -991,14 +1021,22 @@ def parse_md_to_docx(doc, text, config, theme, ctx, fm):
                 p.paragraph_format.left_indent = Inches(cfg.get("left_indent", 0.2))
                 p.paragraph_format.space_before = Pt(cfg.get("space_before", 12)); p.paragraph_format.space_after = Pt(cfg.get("space_after", 12))
                 p.paragraph_format.line_spacing = cfg.get("line_spacing", 1.0)
-                run = p.add_run(token.content); run.font.name = cfg["font"]; run.font.size = Pt(cfg["size"]); run.font.color.rgb = RGBColor.from_string(cfg["color"])
+                
+                clean_content = token.content.rstrip('\n') 
+                # ВНИМАНИЕ: используем clean_content, а не token.content!
+                run = p.add_run(clean_content) 
+                run.font.name = cfg["font"]; run.font.size = Pt(cfg["size"]); run.font.color.rgb = RGBColor.from_string(cfg["color"])
                 set_paragraph_borders(p, top_width=cfg.get("border_top_width", 0), bottom_width=cfg.get("border_bottom_width", 0), color=cfg.get("border_color", "808080"))
             else:
                 cfg = theme["styles"]["code_block"]
                 p.paragraph_format.left_indent = Inches(cfg.get("left_indent", 0.2))
                 p.paragraph_format.space_before = Pt(cfg.get("space_before", 12)); p.paragraph_format.space_after = Pt(cfg.get("space_after", 12))
                 p.paragraph_format.line_spacing = cfg.get("line_spacing", 1.0)
-                run = p.add_run(token.content); run.font.name = cfg["font"]; run.font.size = Pt(cfg["size"]); run.font.color.rgb = RGBColor.from_string(cfg["color"])
+                
+                clean_content = token.content.rstrip('\n') 
+                # ВНИМАНИЕ: используем clean_content
+                run = p.add_run(clean_content) 
+                run.font.name = cfg["font"]; run.font.size = Pt(cfg["size"]); run.font.color.rgb = RGBColor.from_string(cfg["color"])
                 if cfg.get("background_color"): set_paragraph_background(p, cfg["background_color"])
             i += 1
         elif token.type == "math_block":
