@@ -328,7 +328,10 @@ def latex_to_omml(latex_str):
         from mathml2omml import convert as mml2omml
         from lxml import etree
         
-        clean = latex_str.replace('$$', '').replace('\\[', '').replace('\\]', '').strip()
+        # Удаляем делимитеры $$, \[, \], а также обратные кавычки (`) 
+        # и одиночные $, которые могут остаться от GitHub-разметки
+        clean = latex_str.replace('$$', '').replace('\\[', '').replace('\\]', '')
+        clean = clean.replace('`', '').replace('$', '').strip()
         
         # ИСПРАВЛЕНИЕ: \| и \parallel теперь заменяются на || (двойную черту)
         clean = clean.replace(r'\parallel', '||').replace(r'\|', '||').replace(r'\mid', '|')
@@ -1227,7 +1230,9 @@ def build_document(config_path=None, theme_path=None):
         files = sorted([f for f in os.listdir(input_dir) if f.endswith(".md")])
         for f in files:
             logging.info(f"Обработка: {f}")
-            with open(os.path.join(input_dir, f), "r", encoding="utf-8") as file:
+            # БЫЛО: encoding="utf-8"
+            # СТАЛО: encoding="utf-8-sig" (этот режим автоматически съедает BOM)
+            with open(os.path.join(input_dir, f), "r", encoding="utf-8-sig") as file:
                 parse_md_to_docx(doc, file.read(), config, theme, ctx, fm)
     else:
         logging.error(f"Папка {input_dir} не найдена!")
