@@ -321,6 +321,31 @@ def add_toc(doc, theme):
     run4.font.name = toc_cfg["font"]; run4.font.size = Pt(10); run4.font.italic = True; run4.font.color.rgb = RGBColor.from_string("666666")
     run5 = p.add_run(); fldChar3 = OxmlElement('w:fldChar'); fldChar3.set(qn('w:fldCharType'), 'end'); run5._r.append(fldChar3)
 
+def fix_parenthesized_math_nbsp(text):
+    # \u202F — это Narrow No-Break Space (узкий неразрывный пробел). 
+    # Он не дает перенести строку, но выглядит в 2-3 раза уже обычного.
+    NNBSP = '\u202F'
+    
+    # Приклеиваем узкий пробел после открывающей скобки
+    text = re.sub(r'\(\s*\$', f'({NNBSP}$', text)
+    # Приклеиваем узкий пробел перед закрывающей скобкой
+    text = re.sub(r'\$\s*\)', f'${NNBSP})', text)
+    
+    return text
+
+def fix_parenthesized_math(text):
+    # Находит формулы в скобках вида ( $formula$ ) или ($formula$)
+    # и переносит скобки внутрь математической разметки: $(formula)$.
+    # Это предотвращает разрыв строки между скобкой и формулой в Word.
+    
+    # Паттерн ищет: (, пробелы, $...$, пробелы, )
+    # \s* - любые пробелы
+    # \$([^$]+)\$ - знаки доллара и всё, что между ними (группа 1)
+    pattern = r'\(\s*\$([^$]+)\$\s*\)'
+    
+    # Заменяем на: $(группа 1)$
+    return re.sub(pattern, r'$(\1)$', text)
+
 def latex_to_omml(latex_str):
     """Конвертирует LaTeX в OMML (нативный формат Word)."""
     try:
@@ -903,6 +928,10 @@ def process_table(tokens, start_idx, doc, config, theme, ctx, fm):
     return i
 
 def parse_md_to_docx(doc, text, config, theme, ctx, fm):
+    # ВНЕДРЕНИЕ: Приклеиваем скобки к формулам ДО парсинга Markdown
+    text = fix_parenthesized_math(text)
+    #text = fix_parenthesized_math(text)
+    
     md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
     md.use(dollarmath_plugin); md.use(footnote_plugin); tokens = md.parse(text)
     
