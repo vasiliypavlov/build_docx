@@ -265,13 +265,14 @@ def apply_typography(text, lang="ru-RU"):
     if not text: return text
     NBSP = '\u00A0'
     
-    # УДАЛЕНО: Замена дефиса на U+2011 (именно она съедала дефисы)
-    
-    # 2. Приклеиваем закрывающие скобки и знаки препинания
+    # 1. Приклеиваем закрывающие скобки и знаки препинания
     text = re.sub(r'\s+([\)\]\}.,;:!?])', NBSP + r'\1', text)
     
-    # 3. Приклеиваем открывающие скобки
+    # 2. Приклеиваем открывающие скобки
     text = re.sub(r'([\(\[\{])\s+', r'\1' + NBSP, text)
+    
+    # 3. НОВОЕ ПРАВИЛО: Приклеиваем библиографические ссылки [4], [1, 2], [3-5] к предыдущему слову
+    text = re.sub(r'\s+(\[\s*\d+(?:\s*[,\-–]\s*\d+)*\s*\])', NBSP + r'\1', text)
     
     # 4. Приклеиваем короткие предлоги и союзы
     short_words = r'(?:в|во|на|по|с|со|к|ко|о|об|от|до|из|за|для|при|не|ни|и|а|но|да|же|ли|бы)' if lang == "ru-RU" else r'(?:a|an|the|of|in|to|at|on|by|for|with|and|or|but)'
@@ -321,31 +322,39 @@ def add_toc(doc, theme):
     run4.font.name = toc_cfg["font"]; run4.font.size = Pt(10); run4.font.italic = True; run4.font.color.rgb = RGBColor.from_string("666666")
     run5 = p.add_run(); fldChar3 = OxmlElement('w:fldChar'); fldChar3.set(qn('w:fldCharType'), 'end'); run5._r.append(fldChar3)
 
-def fix_parenthesized_math_nbsp(text):
-    # \u202F — это Narrow No-Break Space (узкий неразрывный пробел). 
-    # Он не дает перенести строку, но выглядит в 2-3 раза уже обычного.
-    NNBSP = '\u202F'
+def fix_math_formatting(text):
+    """
+    Внедряет скобки внутрь математического блока с помощью \text{},
+    чтобы Word не мог разорвать их переносом, но при этом скобки
+    оставались в гарнитуре основного текста.
+    """
+    # 1. Приклеиваем знаки препинания (точки, запятые) к формулам
+    text = re.sub(r'\$`?([^$]+?)`?\$\s*([.,;:!?])', r'$\1\2$', text)
+
+    # 2. Затаскиваем ОТКРЫВАЮЩУЮ скобку внутрь следующей за ней формулы
+    # Ищем: ( + пробелы + $...$
+    # Меняем на: $\text{(}...$
+    text = re.sub(r'\(\s*\$`?([^$]+?)`?\$', r'$\\text{(}\1$', text)
     
-    # Приклеиваем узкий пробел после открывающей скобки
-    text = re.sub(r'\(\s*\$', f'({NNBSP}$', text)
-    # Приклеиваем узкий пробел перед закрывающей скобкой
-    text = re.sub(r'\$\s*\)', f'${NNBSP})', text)
-    
+    # 3. Затаскиваем ЗАКРЫВАЮЩУЮ скобку внутрь предыдущей формулы
+    # Ищем: $...$ + пробелы + )
+    # Меняем на: ...\text{)}$
+    text = re.sub(r'\$`?([^$]+?)`?\$\s*\)', r'$\1\\text{)}$', text)
+
     return text
 
-def fix_parenthesized_math(text):
-    # Находит формулы в скобках вида ( $formula$ ) или ($formula$)
-    # и переносит скобки внутрь математической разметки: $(formula)$.
-    # Это предотвращает разрыв строки между скобкой и формулой в Word.
+def fix_punctuation_after_math(text):
+    """
+    Находит формулу $...$, за которой идет знак препинания (с пробелом или без),
+    и переносит этот знак внутрь формулы: $formula,$.
+    Это предотвращает перенос знака препинания на новую строку.
+    """
+    # Ищем: $...$ (с опциональными бэктиками) + пробелы + знак препинания
+    pattern = r'\$`?([^$]+?)`?\$\s*([.,;:!?])'
     
-    # Паттерн ищет: (, пробелы, $...$, пробелы, )
-    # \s* - любые пробелы
-    # \$([^$]+)\$ - знаки доллара и всё, что между ними (группа 1)
-    pattern = r'\(\s*\$([^$]+)\$\s*\)'
+    # Заменяем на: $(группа 1)(знак препинания)$
+    return re.sub(pattern, r'$(\1\2)$', text)
     
-    # Заменяем на: $(группа 1)$
-    return re.sub(pattern, r'$(\1)$', text)
-
 def latex_to_omml(latex_str):
     """Конвертирует LaTeX в OMML (нативный формат Word)."""
     try:
@@ -928,9 +937,9 @@ def process_table(tokens, start_idx, doc, config, theme, ctx, fm):
     return i
 
 def parse_md_to_docx(doc, text, config, theme, ctx, fm):
-    # ВНЕДРЕНИЕ: Приклеиваем скобки к формулам ДО парсинга Markdown
-    text = fix_parenthesized_math(text)
-    #text = fix_parenthesized_math(text)
+    
+    # ВНЕДРЕНИЕ: Обрабатываем всё одной функцией ДО парсинга Markdown
+    text = fix_math_formatting(text)
     
     md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
     md.use(dollarmath_plugin); md.use(footnote_plugin); tokens = md.parse(text)
