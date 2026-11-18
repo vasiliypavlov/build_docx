@@ -9,6 +9,8 @@ import tempfile
 import subprocess
 from dataclasses import dataclass, field
 
+import xml.sax.saxutils as saxutils
+
 import yaml
 import requests
 import matplotlib
@@ -84,6 +86,46 @@ DEFAULT_THEME = {
         "table": {"padding_inches": {"left": 0.04, "right": 0.04, "top": 0.03, "bottom": 0.03}, "border_color": "BFBFBF", "border_width_inner": 4, "border_width_outer": 8, "header_bg": "F2F2F2"}
     }
 }
+
+"""
+DEFAULT_CONFIG = {
+    "paths": {"input_dir": "./text", "output_docx": "output.docx", "code_dir": None},
+    "features": {
+        "hyphenation": True, # В юр. документах лучше включить
+        "numbering": {"figures": False, "tables": False}, 
+        "footnotes": {"mode": "footnotes"}, # Внизу страницы, а не в конце
+        "mermaid": {"timeout_sec": 30}, 
+        "downloads": {"max_size_mb": 50}
+    },
+    "toc": {"enabled": False, "depth": 3}, # ВЫКЛЮЧЕНО для договоров
+    "header_footer": {"header": {"enabled": False}, "footer": {"enabled": True}},
+    "title_page": {"enabled": False}, # ВЫКЛЮЧЕНО
+    "appendix": {"enabled": False, "title": ""} # ВЫКЛЮЧЕНО
+}
+
+DEFAULT_THEME = {
+    "page": {"size": "A4", "margins_inches": {"top": 0.78, "bottom": 0.78, "left": 1.18, "right": 0.59}}, # Юр. поля (2см, 2см, 3см, 1.5см)
+    "text_body": {"font": "Times New Roman", "size": 12, "color": "000000", "align": "justify", "line_spacing": 1.15, "indent_inches": 0.25, "space_after": 0},
+    "lists": {"bullet_marker": "—", "bibliography_hanging_indent": 0.0, "indent_inches": 0.25, "space_before": 0, "space_after": 0},
+    "styles": {
+        "h1": {"font": "Times New Roman", "size": 14, "bold": True, "color": "000000", "align": "center", "space_before": 12, "space_after": 12, "page_break_before": False}, # Разрыв страницы выключен!
+        "h2": {"font": "Times New Roman", "size": 12, "bold": True, "color": "000000", "align": "left", "space_before": 12, "space_after": 6},
+        "h3": {"font": "Times New Roman", "size": 12, "bold": False, "italic": False, "color": "000000", "align": "left", "space_before": 6, "space_after": 6},
+        "quote": {"font": "Times New Roman", "size": 12, "italic": False, "color": "000000", "left_indent": 0.4, "border_left_width": 0, "border_left_color": "000000"},
+        "callout": {"font": "Times New Roman", "size": 12, "color": "000000", "background_color": "FFFFFF", "left_indent": 0.0, "right_indent": 0.0},
+        "code_inline": {"font": "Courier New", "size": 10, "color": "000000", "background_color": "FFFFFF"},
+        "code_block": {"font": "Courier New", "size": 10, "color": "000000", "background_color": "FFFFFF", "left_indent": 0.2},
+        "plaintext": {"font": "Courier New", "size": 10, "color": "000000", "border_top_width": 0, "border_bottom_width": 0, "border_color": "000000", "left_indent": 0.2},
+        "appendix_code": {"font": "Courier New", "size": 10, "color": "000000", "background_color": "FFFFFF", "border_color": "000000", "left_indent": 0.1, "line_spacing": 1.0, "space_before": 8, "space_after": 8, "pyg_keyword": "000000", "pyg_string": "000000", "pyg_comment": "000000", "pyg_number": "000000"},
+        "toc": {"font": "Times New Roman", "size": 12, "color": "000000", "h1_bold": True, "indent_per_level": 0.25},
+        "footnotes": {"font": "Times New Roman", "size": 10, "color": "000000", "line_spacing": 1.0},
+        "metadata": {"font": "Times New Roman", "size": 12, "color": "000000", "line_spacing": 1.15},
+        "caption": {"font": "Times New Roman", "size": 12, "italic": False, "color": "000000"},
+        "table_font_size": 11,
+        "table": {"padding_inches": {"left": 0.05, "right": 0.05, "top": 0.05, "bottom": 0.05}, "border_color": "000000", "border_width_inner": 4, "border_width_outer": 4, "header_bg": "FFFFFF"}
+    }
+}
+"""
 
 def deep_merge(source, destination):
     for key, value in source.items():
@@ -202,11 +244,12 @@ class FootnotesManager:
         doc.add_page_break()
         doc.add_heading('Примечания', level=1)
         for note_id, text in self.notes.items():
-            p = doc.add_paragraph()
-            run = p.add_run(f"[{note_id}] ")
-            run.font.superscript = True
-            p.add_run(text)
-        doc.save(docx_path)
+            # ЭКРАНИРУЕМ СПЕЦСИМВОЛЫ (&, <, >), чтобы не сломать XML
+            safe_text = saxutils.escape(text)
+            xml_template += f'''
+                            <w:footnote w:id="{note_id}">
+                                <w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> {safe_text}</w:t></w:r></w:p>
+                            </w:footnote>'''
 
     def _inject_footnotes_xml(self, docx_path):
         temp_dir = docx_path + "_temp"
@@ -279,7 +322,10 @@ def apply_typography(text, lang="ru-RU"):
     text = re.sub(rf'\b({short_words})\s+', r'\1' + NBSP, text, flags=re.IGNORECASE)
     
     # Заменяем дефис на неразрывный (U+2011) только между буквами
-    text = re.sub(r'(?<=[a-zA-Zа-яА-ЯёЁ])-(?=[a-zA-Zа-яА-ЯёЁ])', '\u2011', text)
+    #text = re.sub(r'(?<=[a-zA-Zа-яА-ЯёЁ])-(?=[a-zA-Zа-яА-ЯёЁ])', '\u2011', text)
+    
+    # Заменяем дефис на неразрывный (U+2011) между буквами/цифрами, даже если автор по ошибке поставил пробелы вокруг него
+    text = re.sub(r'(?<=[a-zA-Zа-яА-ЯёЁ0-9])\s*-\s*(?=[a-zA-Zа-яА-ЯёЁ])', '\u2011', text)
     
     return text
 
@@ -831,6 +877,14 @@ def process_inline(paragraph, children, config, theme, ctx, fm):
             
         elif child.type == "footnote_ref":
             fm.inject_to_paragraph(paragraph, int(child.meta['id']))
+            
+        # ВНЕДРЕНИЕ: Обработка HTML-тегов (например, <br> для переноса строки в таблицах)
+        elif child.type == "html_inline":
+            if child.content.lower() in ("<br>", "<br/>", "<br />"):
+                paragraph.add_run().add_break()
+            # Можно добавить обработку других тегов, если нужно, 
+            # но для договоров <br> достаточно
+            
         elif child.type == "softbreak":
             paragraph.add_run(" ") # Мягкий перенос (одиночный Enter) просто превращаем в пробел
             
@@ -1042,7 +1096,14 @@ def parse_md_to_docx(doc, text, config, theme, ctx, fm):
                         run_num.font.color.rgb = RGBColor.from_string(normal_color)
             else:
                 p.paragraph_format.first_line_indent = Inches(tb_cfg.get("indent_inches", 0.0))
-                p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                # Читаем выравнивание из конфига
+                align_str = tb_cfg.get("align", "left").lower()
+                if align_str == "justify":
+                    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                elif align_str == "center":
+                    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                else:
+                    p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 p.paragraph_format.line_spacing = tb_cfg.get("line_spacing", 1.4)
                 p.paragraph_format.space_before = Pt(0); p.paragraph_format.space_after = Pt(tb_cfg.get("space_after", 8))
             process_inline(p, tokens[i+1].children, config, theme, ctx, fm); 
@@ -1261,7 +1322,9 @@ def build_document(config_path=None, theme_path=None):
     set_document_settings(doc, config) 
 
     add_title_page(doc, config, theme)
-    add_toc(doc, theme)
+    # Генерируем TOC только если это явно указано в config.yaml
+    if config.get("toc", {}).get("enabled", True):
+        add_toc(doc, theme)
     
     # Обработка Markdown
     if os.path.exists(input_dir):

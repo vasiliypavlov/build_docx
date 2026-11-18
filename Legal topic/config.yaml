@@ -1,0 +1,35 @@
+# Отключаем академический титульный лист
+title_page:
+  enabled: false
+
+toc:
+  enabled: false
+  
+header_footer:
+  header:
+    enabled: false
+  footer:
+    enabled: true
+    first_page_text: "" # На первой странице номер обычно не ставят
+    show_page_numbers: true
+    alignment: "center"
+
+features:
+  hyphenation: true # В юр. документах часто включают переносы, чтобы не было огромных дыр
+  numbering:
+    figures: false
+    tables: false
+  footnotes:
+    mode: "footnotes" # В договорах сноски должны быть внизу страницы, а не в конце
+
+metadata:
+  title: "Договор оказания услуг"
+  subject: "Прототип договора"
+  author: "Юридический департамент"
+  keywords: "договор, юриспруденция, шаблон"
+  category: "Legal Document"
+  comments: "Сгенерировано с помощью build_docx."
+  
+# Отключаем приложение с исходным кодом
+appendix:
+  enabled: false

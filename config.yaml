@@ -23,6 +23,9 @@ title_page:
   abstract_ru_title: "АННОТАЦИЯ:"
   abstract_ru_text: 'Это краткое описание вашего исследования. Оно должно содержать основные цели, методологию и ключевые результаты. Здесь также можно использовать формулы, например $E = mc^2$.'
 
+toc:
+  enabled: true
+  
 header_footer:
   header:
     enabled: true
