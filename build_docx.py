@@ -244,51 +244,74 @@ class FootnotesManager:
         doc.add_page_break()
         doc.add_heading('Примечания', level=1)
         for note_id, text in self.notes.items():
-            # ЭКРАНИРУЕМ СПЕЦСИМВОЛЫ (&, <, >), чтобы не сломать XML
-            safe_text = saxutils.escape(text)
-            xml_template += f'''
-                            <w:footnote w:id="{note_id}">
-                                <w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> {safe_text}</w:t></w:r></w:p>
-                            </w:footnote>'''
+            p = doc.add_paragraph()
+            run = p.add_run(f"[{note_id}] ")
+            run.font.superscript = True
+            p.add_run(text) # <--- Здесь обычный текст, экранирование не нужно
+        doc.save(docx_path)
 
     def _inject_footnotes_xml(self, docx_path):
         temp_dir = docx_path + "_temp"
         with zipfile.ZipFile(docx_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
+            
         footnotes_path = os.path.join(temp_dir, 'word', 'footnotes.xml')
+        
+        # 1. Генерация XML файла сносок
         xml_template = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:footnotes xmlns:w="{self.w_ns}">
-    <w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>
-    <w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>
-'''
+        <w:footnotes xmlns:w="{self.w_ns}">
+            <w:footnote w:type="separator" w:id="-1"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>
+            <w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>
+        '''
+        
         for note_id, text in self.notes.items():
+            # ЭКРАНИРУЕМ СПЕЦСИМВОЛЫ (&, <, >), чтобы не сломать XML
+            safe_text = saxutils.escape(text)
             xml_template += f'''
-    <w:footnote w:id="{note_id}">
-        <w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> {text}</w:t></w:r></w:p>
-    </w:footnote>'''
+            <w:footnote w:id="{note_id}">
+                <w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> {safe_text}</w:t></w:r></w:p>
+            </w:footnote>'''
+    
         xml_template += "\n</w:footnotes>"
+        
         with open(footnotes_path, 'w', encoding='utf-8') as f:
             f.write(xml_template)
 
+        # 2. БЕЗОПАСНАЯ ПРАВКА [Content_Types].xml (без lxml)
         ct_path = os.path.join(temp_dir, '[Content_Types].xml')
-        tree = etree.parse(ct_path)
-        root = tree.getroot()
-        ns = '{http://schemas.openxmlformats.org/package/2006/content-types}'
-        if not any(elem.get('PartName') == '/word/footnotes.xml' for elem in root.findall(f'{ns}Override')):
-            override = etree.SubElement(root, f'{ns}Override')
-            override.set('PartName', '/word/footnotes.xml')
-            override.set('ContentType', 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml')
-            tree.write(ct_path, xml_declaration=True, encoding='UTF-8')
+        with open(ct_path, 'r', encoding='utf-8') as f:
+            ct_content = f.read()
+            
+        if '/word/footnotes.xml' not in ct_content:
+            override = '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>'
+            # Вставляем перед закрывающим тегом </Types>
+            ct_content = ct_content.replace('</Types>', f'{override}</Types>')
+            with open(ct_path, 'w', encoding='utf-8') as f:
+                f.write(ct_content)
 
+        # 3. БЕЗОПАСНАЯ ПРАВКА document.xml.rels (без lxml)
         rels_path = os.path.join(temp_dir, 'word', '_rels', 'document.xml.rels')
-        tree = etree.parse(rels_path)
-        root = tree.getroot()
-        rel_ids = [rel.get('Id') for rel in root]
-        max_id = max([int(rid[3:]) for rid in rel_ids if rid.startswith('rId')] + [0])
-        new_rid = f"rId{max_id + 1}"
-        rel = etree.SubElement(root, '{http://schemas.openxmlformats.org/package/2006/relationships}Relationship')
-        rel.set('Id', new_rid); rel.set('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes'); rel.set('Target', 'footnotes.xml')
-        tree.write(rels_path, xml_declaration=True, encoding='UTF-8')
+        with open(rels_path, 'r', encoding='utf-8') as f:
+            rels_content = f.read()
+
+        if 'footnotes.xml' not in rels_content:
+            # Ищем максимальный rId
+            existing_rids = [int(m) for m in re.findall(r'Id="rId(\d+)"', rels_content)]
+            max_id = max(existing_rids) if existing_rids else 0
+            new_rid = f"rId{max_id + 1}"
+            
+            new_rel = f'<Relationship Id="{new_rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/>'
+            # Вставляем перед закрывающим тегом </Relationships>
+            rels_content = rels_content.replace('</Relationships>', f'{new_rel}</Relationships>')
+            
+            with open(rels_path, 'w', encoding='utf-8') as f:
+                f.write(rels_content)
+
+        # 4. Пересборка архива
+        # Удаляем старый файл, чтобы избежать ошибок при перезаписи
+        if os.path.exists(docx_path):
+            os.remove(docx_path)
+            
         shutil.make_archive(temp_dir, 'zip', temp_dir)
         shutil.move(temp_dir + '.zip', docx_path)
         shutil.rmtree(temp_dir)
@@ -1237,12 +1260,29 @@ def setup_headers_footers(doc, config, theme):
         run.font.color.rgb = RGBColor(128, 128, 128)
         
         # Вставка поля PAGE
+        """
         fldChar1 = OxmlElement('w:fldChar'); fldChar1.set(qn('w:fldCharType'), 'begin')
         instrText = OxmlElement('w:instrText'); instrText.set(qn('xml:space'), 'preserve'); instrText.text = 'PAGE'
         fldChar2 = OxmlElement('w:fldChar'); fldChar2.set(qn('w:fldCharType'), 'separate')
         t = OxmlElement('w:t'); t.text = "1"
         fldChar3 = OxmlElement('w:fldChar'); fldChar3.set(qn('w:fldCharType'), 'end')
         run._r.append(fldChar1); run._r.append(instrText); run._r.append(fldChar2); run._r.append(t); run._r.append(fldChar3)
+        """
+        # Вставка поля PAGE (разбиваем на отдельные run для 100% совместимости с LibreOffice)
+        run_begin = p.add_run()
+        fldChar1 = OxmlElement('w:fldChar'); fldChar1.set(qn('w:fldCharType'), 'begin'); run_begin._r.append(fldChar1)
+
+        run_instr = p.add_run()
+        instrText = OxmlElement('w:instrText'); instrText.set(qn('xml:space'), 'preserve'); instrText.text = ' PAGE '; run_instr._r.append(instrText)
+
+        run_sep = p.add_run()
+        fldChar2 = OxmlElement('w:fldChar'); fldChar2.set(qn('w:fldCharType'), 'separate'); run_sep._r.append(fldChar2)
+
+        run_text = p.add_run()
+        t = OxmlElement('w:t'); t.text = "1"; run_text._r.append(t)
+
+        run_end = p.add_run()
+        fldChar3 = OxmlElement('w:fldChar'); fldChar3.set(qn('w:fldCharType'), 'end'); run_end._r.append(fldChar3)
 
 def set_document_settings(doc, config):
     settings = doc.settings.element
