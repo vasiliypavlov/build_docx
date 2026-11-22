@@ -1,0 +1,55 @@
+page:
+  size: "A4"
+  # Поля: верх/низ 2см, лево 3см (для подшивки), право 1.5см
+  margins_inches: {top: 0.79, bottom: 0.79, left: 1.18, right: 0.59} 
+
+text_body:
+  font: "Times New Roman"
+  size: 12 # Можно увеличить до 14, если позволяет объем
+  color: "000000"
+  align: "justify" # Строго по ГОСТ
+  line_spacing: 1.15 # ГОСТ допускает 1.0 - 1.5
+  indent_inches: 0.49 # ИСПРАВЛЕНО: 1.25 см = 0.49 дюйма
+  space_after: 0
+
+lists:
+  bullet_marker: "—" 
+  bibliography_hanging_indent: 0.0
+  indent_inches: 0.49 # Выравниваем списки по красной строке
+  space_before: 0
+  space_after: 0
+
+styles:
+  # Название договора
+  h1: {font: "Times New Roman", size: 14, bold: true, color: "000000", align: "center", space_before: 0, space_after: 12, page_break_before: false}
+  
+  # Разделы (1. ПРЕДМЕТ ДОГОВОРА)
+  h2: {font: "Times New Roman", size: 14, bold: true, color: "000000", align: "left", space_before: 12, space_after: 6}
+  
+  # Подразделы (1.1. Стороны...)
+  h3: {font: "Times New Roman", size: 12, bold: false, italic: false, color: "000000", align: "left", space_before: 6, space_after: 6}
+  
+  link_color: "0000FF" 
+
+  footnotes:
+    font: "Times New Roman"
+    size: 10
+    color: "000000"
+    line_spacing: 1.0
+    space_after: 2
+
+  table_font_size: 12 # Увеличили для соответствия основному тексту
+  table:
+    padding_inches: {left: 0.05, right: 0.05, top: 0.05, bottom: 0.05}
+    border_color: "000000" 
+    border_width_inner: 4
+    border_width_outer: 4
+    header_bg: "FFFFFF" 
+
+  toc:
+    font: "Times New Roman"
+    size: 12
+    color: "000000"
+    h1_bold: true
+    indent_per_level: 0.49 # Выравниваем оглавление
+    title_align: "center"
